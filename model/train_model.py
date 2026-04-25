@@ -82,7 +82,6 @@ def train(data_path=None):
         "monthly_charges": monthly_charges_by_churn(df, target_col),
         "contract_churn": contract_churn(df, target_col),
         "tenure_distribution": tenure_distribution(df, target_col),
-        "satisfaction_churn": satisfaction_churn(df, target_col),
     }
 # Create an artifact dictionary that contains the model, encoders, scaler, feature names, evaluation metrics, and charts. This will be saved to disk and can be loaded by the dashboard for visualization and inference.
     artifact = {
