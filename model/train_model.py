@@ -17,7 +17,7 @@ from utils.visualization import (
     feature_importance_chart, roc_curve_data,
     confusion_matrix_data, churn_distribution,
     monthly_charges_by_churn, contract_churn,
-    tenure_distribution, satisfaction_churn
+    tenure_distribution
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
