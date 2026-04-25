@@ -77,12 +77,3 @@ def tenure_distribution(df: pd.DataFrame, target_col: str) -> dict:
         "datasets": {str(col): ct.reindex(labels_text).fillna(0)[col].tolist() for col in ct.columns}
     }
 
-
-def satisfaction_churn(df: pd.DataFrame, target_col: str) -> dict:
-    if "SatisfactionScore" not in df.columns:
-        return {}
-    ct = df.groupby(["SatisfactionScore", target_col]).size().unstack(fill_value=0)
-    return {
-        "labels": [str(x) for x in ct.index.tolist()],
-        "datasets": {str(col): ct[col].tolist() for col in ct.columns}
-    }
