@@ -1,1 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — ChurnCAPTURE</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <a class="nav-brand" href="/"><span class="dot"></span>ChurnCAPTURE</a>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/dashboard" class="active">Dashboard</a></li>
+            <li><a href="/predict">Predict</a></li>
+            <li><a href="/insights">Model Insights</a></li>
+        </ul>
+    </nav>
+
+    <div class="container" style="padding-top:1rem;">
+        {% with messages = get_flashed_messages(with_categories=true) %} {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %} {% endwith %}
+    </div>
+
+    <div class="container">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;">
+            <div>
+                <div class="hero-badge" style="margin-bottom:0.5rem;">
+                    <span class="dot" style="width:6px;height:6px;"></span> Live Analytics
+                </div>
+                <h2 style="font-family: 'Michroma', sans-serif;font-size:1.8rem;font-weight:800;">
+                    Churn <span style="color:var(--accent)">Dashboard</span>
+                </h2>
+            </div>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                <a href="/predict" class="btn btn-primary">Run Prediction →</a>
+                <a href="/insights" class="btn btn-outline">Model Insights</a>
+            </div>
+        </div>
+
+        <!-- KPI Row -->
+        <div class="stats-grid fade-up" style="margin-bottom:1.5rem;">
+            <div class="stat-card fade-up-1">
+                <div class="label">Total Customers</div>
+                <div class="value">{{ stats.total }}</div>
+                <div class="sub">dataset records</div>
+            </div>
+            <div class="stat-card fade-up-2">
+                <div class="label">Churned</div>
+                <div class="value" style="color:var(--danger)">{{ stats.churned }}</div>
+                <div class="sub">confirmed exits</div>
+            </div>
+            <div class="stat-card fade-up-3">
+                <div class="label">Churn Rate</div>
+                <div class="value" style="color:var(--warn)">{{ stats.churn_rate }}%</div>
+                <div class="sub">overall attrition</div>
+            </div>
+            <div class="stat-card fade-up-4">
+                <div class="label">Best Model</div>
+                <div class="value" style="font-size:1rem;padding-top:0.3rem;color:var(--accent3)">{{ best_model }}</div>
+                <div class="sub">selected by AUC</div>
+            </div>
+        </div>
+
+        <!-- Row 1: Churn Distribution + Feature Importance -->
+        <div class="chart-grid fade-up">
+            <div class="card">
+                <div class="card-header"><span class="dot"></span> Churn Distribution</div>
+                <div class="chart-wrap"><canvas id="churnDist"></canvas></div>
+            </div>
+            <div class="card" style="grid-column: span 1;">
+                <div class="card-header"><span class="dot"></span> Top Feature Importance</div>
+                <div class="chart-wrap"><canvas id="featImportance"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Row 2: Contract + Tenure -->
+        <div class="chart-grid fade-up" style="margin-top:1.25rem;">
+            <div class="card">
+                <div class="card-header"><span class="dot"></span> Churn by Contract Type</div>
+                <div class="chart-wrap"><canvas id="contractChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><span class="dot"></span> Churn by Tenure Band</div>
+                <div class="chart-wrap"><canvas id="tenureChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Row 3: Satisfaction + ROC -->
+        <div class="chart-grid fade-up" style="margin-top:1.25rem;">
+            <div class="card">
+                <div class="card-header"><span class="dot"></span> ROC Curve</div>
+                <div class="chart-wrap"><canvas id="rocChart"></canvas></div>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>ChurnCAPTURE &mdash; Customer Churn Prediction System &bull; Built with Flask &amp; Scikit-learn</footer>
+
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script>
+        // prettier-ignore
+        const CHARTS = {{ charts_json | safe }};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (CHARTS.churn_distribution)
+                makeChurn(document.getElementById('churnDist'), CHARTS.churn_distribution);
+
+            if (CHARTS.feature_importance)
+                makeFeatureImportance(document.getElementById('featImportance'), CHARTS.feature_importance);
+
+            if (CHARTS.roc_curve)
+                makeROC(document.getElementById('rocChart'), CHARTS.roc_curve);
+
+            if (CHARTS.contract_churn)
+                makeContractChurn(document.getElementById('contractChart'), CHARTS.contract_churn);
+
+            if (CHARTS.tenure_distribution)
+                makeTenure(document.getElementById('tenureChart'), CHARTS.tenure_distribution);
+        });
+    </script>
+</body>
+
+</html>
