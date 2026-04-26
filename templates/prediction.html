@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Model Insights — ChurnCAPTURE</title>
+  <title>Predict Churn — ChurnCAPTURE</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
@@ -14,8 +14,8 @@
   <ul class="nav-links">
     <li><a href="/">Home</a></li>
     <li><a href="/dashboard">Dashboard</a></li>
-    <li><a href="/predict">Predict</a></li>
-    <li><a href="/insights" class="active">Model Insights</a></li>
+    <li><a href="/predict" class="active">Predict</a></li>
+    <li><a href="/insights">Model Insights</a></li>
   </ul>
 </nav>
 
@@ -30,135 +30,90 @@
 <div class="container">
   <div style="margin-bottom:2rem;">
     <div class="hero-badge" style="margin-bottom:0.5rem;">
-      <span class="dot" style="width:6px;height:6px;"></span> Evaluation Report
+      <span class="dot" style="width:6px;height:6px;"></span> Churn Predictor
     </div>
     <h2 style="font-family: 'Michroma', sans-serif;font-size:1.8rem;font-weight:800;">
-      Model <span style="color:var(--accent)">Performance Insights</span>
+      Customer <span style="color:var(--accent)">Risk Assessment</span>
     </h2>
+    <p style="color:var(--muted);font-size:0.85rem;margin-top:0.5rem;">
+      Enter customer attributes below. The model will predict churn probability and assign a risk tier.
+    </p>
   </div>
 
-  <!-- Best Model Callout -->
-  <div class="card fade-up" style="border-color:rgba(52,211,153,0.3);margin-bottom:1.5rem;background:rgba(52,211,153,0.04);">
-    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-      <div style="font-size:2rem;">🏆</div>
-      <div>
-        <div style="font-family: 'Michroma', sans-serif;font-weight:800;font-size:1.1rem;color:var(--accent3);">
-          Selected: {{ best_model }}
-        </div>
-        <div style="color:var(--muted);font-size:0.8rem;margin-top:0.2rem;">
-          Chosen by highest ROC-AUC score across all trained classifiers.
+  {% if result %}
+  <div class="result-panel fade-up" id="result-panel"
+       style="border-color:{{ result.risk_color }}33;">
+    <div class="result-gauge">
+      <div class="gauge-ring">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#141b2d" stroke-width="10"/>
+          <circle id="gauge-arc" cx="60" cy="60" r="50" fill="none"
+                  stroke-width="10" stroke-linecap="round"
+                  style="stroke-dasharray:314;stroke-dashoffset:314;"/>
+        </svg>
+        <div class="gauge-pct">
+          <span>{{ result.probability }}%</span>
+          <small>CHURN PROB.</small>
         </div>
       </div>
-      {% if metrics[best_model] %}
-      <div style="margin-left:auto;display:flex;gap:1.5rem;flex-wrap:wrap;">
-        {% set m = metrics[best_model] %}
-        {% for label, val in [("AUC", m.roc_auc), ("F1", m.f1), ("Precision", m.precision), ("Recall", m.recall)] %}
-        <div style="text-align:center;">
-          <div style="font-family: 'Michroma', sans-serif;font-size:1.2rem;font-weight:800;color:var(--accent3);">{{ val }}</div>
-          <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;">{{ label }}</div>
-        </div>
-        {% endfor %}
+    </div>
+
+    <div class="result-detail">
+      <span class="risk-badge"
+            style="background:{{ result.risk_color }}22;color:{{ result.risk_color }};border:1px solid {{ result.risk_color }}44;">
+        {{ result.risk }} Risk
+      </span>
+      <div style="font-family: 'Michroma', sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:0.5rem;">
+        {% if result.prediction == 1 %}
+          ⚠️ Likely to Churn
+        {% else %}
+          ✅ Likely to Retain
+        {% endif %}
       </div>
-      {% endif %}
+      <p style="color:var(--muted);font-size:0.82rem;line-height:1.6;">
+        {% if result.risk == "High" %}
+          This customer shows strong churn signals. Immediate retention intervention is recommended — consider personalized offers, contract upgrades, or proactive support outreach.
+        {% elif result.risk == "Medium" %}
+          This customer has moderate churn risk. Monitor closely and consider a light-touch retention campaign or loyalty incentive.
+        {% else %}
+          This customer appears stable. Continue standard engagement and maintain service quality.
+        {% endif %}
+      </p>
+      <div style="display:flex;gap:0.75rem;margin-top:1rem;flex-wrap:wrap;">
+        <a href="/predict" class="btn btn-outline" style="font-size:0.78rem;">← New Prediction</a>
+        <a href="/dashboard" class="btn btn-outline" style="font-size:0.78rem;">View Dashboard</a>
+      </div>
     </div>
   </div>
+  {% endif %}
 
-  <!-- Metrics Comparison Table -->
-  <div class="card fade-up" style="margin-bottom:1.5rem;">
-    <div class="card-header"><span class="dot"></span> Model Comparison</div>
-    <table class="metrics-table">
-      <thead>
-        <tr>
-          <th>Model</th>
-          <th>ROC-AUC</th>
-          <th>F1 Score</th>
-          <th>Precision</th>
-          <th>Recall</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for model_name, m in metrics.items() %}
-        <tr class="{{ 'best-row' if model_name == best_model else '' }}">
-          <td>
-            {{ model_name }}
-            {% if model_name == best_model %}
-              <span class="tag" style="margin-left:8px;">best</span>
+  <div class="card fade-up" style="margin-top:2rem;">
+    <div class="card-header"><span class="dot"></span> Customer Attributes</div>
+    <form method="POST" action="/predict">
+      <div class="form-grid">
+        {% for feature in feature_names %}
+          {% set val = form_data.get(feature, '') %}
+          <div class="form-group">
+            <label for="{{ feature }}">{{ feature.replace('_', ' ') }}</label>
+            {% if feature in encoders %}
+              <select name="{{ feature }}" id="{{ feature }}">
+                {% for cls in encoders[feature].classes_ %}
+                  <option value="{{ cls }}" {% if val == cls %}selected{% endif %}>{{ cls }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="number" step="any" name="{{ feature }}" id="{{ feature }}"
+                     value="{{ val if val else '0' }}" placeholder="0"/>
             {% endif %}
-          </td>
-          <td>
-            <div class="metric-bar">
-              <span style="min-width:42px;">{{ m.roc_auc }}</span>
-              <div class="metric-bar-track">
-                <div class="metric-bar-fill" style="width:{{ (m.roc_auc * 100)|round }}%"></div>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="metric-bar">
-              <span style="min-width:42px;">{{ m.f1 }}</span>
-              <div class="metric-bar-track">
-                <div class="metric-bar-fill" style="width:{{ (m.f1 * 100)|round }}%;background:linear-gradient(90deg,var(--accent2),var(--accent3));"></div>
-              </div>
-            </div>
-          </td>
-          <td>{{ m.precision }}</td>
-          <td>{{ m.recall }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Charts Row: ROC + CM -->
-  <div class="chart-grid fade-up">
-    <div class="card">
-      <div class="card-header"><span class="dot"></span> ROC Curve</div>
-      <div class="chart-wrap"><canvas id="rocChart"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="dot"></span> Confusion Matrix</div>
-      <div style="display:flex;align-items:center;justify-content:center;height:280px;gap:2rem;flex-wrap:wrap;">
-        <div id="cm-display">
-          <div style="text-align:center;color:var(--muted);font-size:0.75rem;margin-bottom:0.75rem;">Predicted →</div>
-          <div class="cm-grid">
-            <div class="cm-cell cm-tn" id="cm-tn">—<small>True Neg</small></div>
-            <div class="cm-cell cm-fp" id="cm-fp">—<small>False Pos</small></div>
-            <div class="cm-cell cm-fn" id="cm-fn">—<small>False Neg</small></div>
-            <div class="cm-cell cm-tp" id="cm-tp">—<small>True Pos</small></div>
           </div>
-        </div>
-        <div style="font-size:0.75rem;color:var(--muted);line-height:2;">
-          <div>🟢 <strong style="color:var(--accent3)">TN</strong> — Correctly predicted no-churn</div>
-          <div>🔴 <strong style="color:var(--danger)">FP</strong> — Predicted churn, stayed</div>
-          <div>🟡 <strong style="color:var(--warn)">FN</strong> — Missed churners</div>
-          <div>🔵 <strong style="color:var(--accent)">TP</strong> — Correctly caught churners</div>
-        </div>
+        {% endfor %}
       </div>
-    </div>
-  </div>
 
-  <!-- Feature Importance -->
-  <div class="card fade-up" style="margin-top:1.25rem;">
-    <div class="card-header"><span class="dot"></span> Feature Importance (Top 15)</div>
-    <div class="chart-wrap" style="height:340px;"><canvas id="featChart"></canvas></div>
-  </div>
-
-  <!-- Methodology Note -->
-  <div class="card fade-up" style="margin-top:1.25rem;background:rgba(129,140,248,0.04);border-color:rgba(129,140,248,0.2);">
-    <div class="card-header"><span class="dot" style="background:var(--accent2)"></span> Methodology Notes</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;">
-      {% for title, body in [
-        ("Data Split", "80/20 stratified train-test split preserves class balance across both sets."),
-        ("Encoding", "Label encoding for ordinal features; all categorical columns auto-detected and encoded."),
-        ("Scaling", "StandardScaler applied to numeric features post-split to prevent data leakage."),
-        ("Selection Criterion", "Best model is selected by ROC-AUC, which accounts for class imbalance better than accuracy."),
-      ] %}
-      <div>
-        <div style="font-family: 'Michroma', sans-serif;font-weight:700;font-size:0.85rem;margin-bottom:0.4rem;color:var(--accent2);">{{ title }}</div>
-        <div style="font-size:0.8rem;color:var(--muted);line-height:1.6;">{{ body }}</div>
+      <div style="margin-top:1.5rem;display:flex;gap:1rem;flex-wrap:wrap;">
+        <button type="submit" class="btn btn-primary">Predict Churn Risk →</button>
+        <button type="reset" class="btn btn-outline">Reset Form</button>
       </div>
-      {% endfor %}
-    </div>
+    </form>
   </div>
 </div>
 
@@ -166,22 +121,14 @@
 
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
-  const CHARTS = {{ charts_json | safe }};
-
   document.addEventListener('DOMContentLoaded', () => {
-    makeROC(document.getElementById('rocChart'), CHARTS.roc_curve);
-    makeFeatureImportance(document.getElementById('featChart'), CHARTS.feature_importance);
-
-    const cm = CHARTS.confusion_matrix;
-    if (cm && cm.matrix) {
-      const [[tn, fp], [fn, tp]] = cm.matrix;
-      document.getElementById('cm-tn').childNodes[0].textContent = tn;
-      document.getElementById('cm-fp').childNodes[0].textContent = fp;
-      document.getElementById('cm-fn').childNodes[0].textContent = fn;
-      document.getElementById('cm-tp').childNodes[0].textContent = tp;
-    }
+    {% if result %}
+    const arc = document.getElementById('gauge-arc');
+    if (arc) animateGauge(arc, {{ result.probability }}, '{{ result.risk_color }}');
+    const panel = document.getElementById('result-panel');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    {% endif %}
   });
 </script>
 </body>
 </html>
-
