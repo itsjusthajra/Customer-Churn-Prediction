@@ -1,1 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Model Insights — ChurnCAPTURE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="nav-brand" href="/"><span class="dot"></span>ChurnCAPTURE</a>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/dashboard">Dashboard</a></li>
+    <li><a href="/predict">Predict</a></li>
+    <li><a href="/insights" class="active">Model Insights</a></li>
+  </ul>
+</nav>
+
+<div class="container" style="padding-top:1rem;">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<div class="container">
+  <div style="margin-bottom:2rem;">
+    <div class="hero-badge" style="margin-bottom:0.5rem;">
+      <span class="dot" style="width:6px;height:6px;"></span> Evaluation Report
+    </div>
+    <h2 style="font-family: 'Michroma', sans-serif;font-size:1.8rem;font-weight:800;">
+      Model <span style="color:var(--accent)">Performance Insights</span>
+    </h2>
+  </div>
+
+  <!-- Best Model Callout -->
+  <div class="card fade-up" style="border-color:rgba(52,211,153,0.3);margin-bottom:1.5rem;background:rgba(52,211,153,0.04);">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+      <div style="font-size:2rem;">🏆</div>
+      <div>
+        <div style="font-family: 'Michroma', sans-serif;font-weight:800;font-size:1.1rem;color:var(--accent3);">
+          Selected: {{ best_model }}
+        </div>
+        <div style="color:var(--muted);font-size:0.8rem;margin-top:0.2rem;">
+          Chosen by highest ROC-AUC score across all trained classifiers.
+        </div>
+      </div>
+      {% if metrics[best_model] %}
+      <div style="margin-left:auto;display:flex;gap:1.5rem;flex-wrap:wrap;">
+        {% set m = metrics[best_model] %}
+        {% for label, val in [("AUC", m.roc_auc), ("F1", m.f1), ("Precision", m.precision), ("Recall", m.recall)] %}
+        <div style="text-align:center;">
+          <div style="font-family: 'Michroma', sans-serif;font-size:1.2rem;font-weight:800;color:var(--accent3);">{{ val }}</div>
+          <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;">{{ label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Metrics Comparison Table -->
+  <div class="card fade-up" style="margin-bottom:1.5rem;">
+    <div class="card-header"><span class="dot"></span> Model Comparison</div>
+    <table class="metrics-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>ROC-AUC</th>
+          <th>F1 Score</th>
+          <th>Precision</th>
+          <th>Recall</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for model_name, m in metrics.items() %}
+        <tr class="{{ 'best-row' if model_name == best_model else '' }}">
+          <td>
+            {{ model_name }}
+            {% if model_name == best_model %}
+              <span class="tag" style="margin-left:8px;">best</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="metric-bar">
+              <span style="min-width:42px;">{{ m.roc_auc }}</span>
+              <div class="metric-bar-track">
+                <div class="metric-bar-fill" style="width:{{ (m.roc_auc * 100)|round }}%"></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="metric-bar">
+              <span style="min-width:42px;">{{ m.f1 }}</span>
+              <div class="metric-bar-track">
+                <div class="metric-bar-fill" style="width:{{ (m.f1 * 100)|round }}%;background:linear-gradient(90deg,var(--accent2),var(--accent3));"></div>
+              </div>
+            </div>
+          </td>
+          <td>{{ m.precision }}</td>
+          <td>{{ m.recall }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Charts Row: ROC + CM -->
+  <div class="chart-grid fade-up">
+    <div class="card">
+      <div class="card-header"><span class="dot"></span> ROC Curve</div>
+      <div class="chart-wrap"><canvas id="rocChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="dot"></span> Confusion Matrix</div>
+      <div style="display:flex;align-items:center;justify-content:center;height:280px;gap:2rem;flex-wrap:wrap;">
+        <div id="cm-display">
+          <div style="text-align:center;color:var(--muted);font-size:0.75rem;margin-bottom:0.75rem;">Predicted →</div>
+          <div class="cm-grid">
+            <div class="cm-cell cm-tn" id="cm-tn">—<small>True Neg</small></div>
+            <div class="cm-cell cm-fp" id="cm-fp">—<small>False Pos</small></div>
+            <div class="cm-cell cm-fn" id="cm-fn">—<small>False Neg</small></div>
+            <div class="cm-cell cm-tp" id="cm-tp">—<small>True Pos</small></div>
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--muted);line-height:2;">
+          <div>🟢 <strong style="color:var(--accent3)">TN</strong> — Correctly predicted no-churn</div>
+          <div>🔴 <strong style="color:var(--danger)">FP</strong> — Predicted churn, stayed</div>
+          <div>🟡 <strong style="color:var(--warn)">FN</strong> — Missed churners</div>
+          <div>🔵 <strong style="color:var(--accent)">TP</strong> — Correctly caught churners</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature Importance -->
+  <div class="card fade-up" style="margin-top:1.25rem;">
+    <div class="card-header"><span class="dot"></span> Feature Importance (Top 15)</div>
+    <div class="chart-wrap" style="height:340px;"><canvas id="featChart"></canvas></div>
+  </div>
+
+  <!-- Methodology Note -->
+  <div class="card fade-up" style="margin-top:1.25rem;background:rgba(129,140,248,0.04);border-color:rgba(129,140,248,0.2);">
+    <div class="card-header"><span class="dot" style="background:var(--accent2)"></span> Methodology Notes</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;">
+      {% for title, body in [
+        ("Data Split", "80/20 stratified train-test split preserves class balance across both sets."),
+        ("Encoding", "Label encoding for ordinal features; all categorical columns auto-detected and encoded."),
+        ("Scaling", "StandardScaler applied to numeric features post-split to prevent data leakage."),
+        ("Selection Criterion", "Best model is selected by ROC-AUC, which accounts for class imbalance better than accuracy."),
+      ] %}
+      <div>
+        <div style="font-family: 'Michroma', sans-serif;font-weight:700;font-size:0.85rem;margin-bottom:0.4rem;color:var(--accent2);">{{ title }}</div>
+        <div style="font-size:0.8rem;color:var(--muted);line-height:1.6;">{{ body }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<footer>ChurnCAPTURE &mdash; Customer Churn Prediction System &bull; Built with Flask &amp; Scikit-learn</footer>
+
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+  const CHARTS = {{ charts_json | safe }};
+
+  document.addEventListener('DOMContentLoaded', () => {
+    makeROC(document.getElementById('rocChart'), CHARTS.roc_curve);
+    makeFeatureImportance(document.getElementById('featChart'), CHARTS.feature_importance);
+
+    const cm = CHARTS.confusion_matrix;
+    if (cm && cm.matrix) {
+      const [[tn, fp], [fn, tp]] = cm.matrix;
+      document.getElementById('cm-tn').childNodes[0].textContent = tn;
+      document.getElementById('cm-fp').childNodes[0].textContent = fp;
+      document.getElementById('cm-fn').childNodes[0].textContent = fn;
+      document.getElementById('cm-tp').childNodes[0].textContent = tp;
+    }
+  });
+</script>
+</body>
+</html>
 
