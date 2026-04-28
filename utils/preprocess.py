@@ -79,13 +79,16 @@ def build_pipeline(filepath: str, test_size=0.2, random_state=42):
 
     def get_target_column(df):
         if "ChurnLabel" in df.columns:
-
             return "ChurnLabel"
         elif "Churn" in df.columns:
             return "Churn"
+        elif "churn" in df.columns:
+            return "churn"
+        elif "Churned" in df.columns:
+            return "Churned"
         else:
             raise ValueError("Target column not found")
-
+        
     target_col = get_target_column(df)
 
     # Step 2: Encode only (no scaling yet)
