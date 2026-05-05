@@ -4,13 +4,22 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 
 
-# Columns that don’t really help with prediction or may leak information
+# Columns that don't really help with prediction or may leak information
 # (especially churn-related ones like ChurnReason)
 DROP_COLS = [
     "CustomerID", "Country", "State", "City", "ZipCode",
     "Latitude", "Longitude", "Quarter",
     "ChurnCategory", "ChurnReason", "ChurnScore", "CLTV",
-    "CustomerStatus", "Population","SatisfactionScore"
+    "CustomerStatus", "Population", "SatisfactionScore",
+    # Derivable features - redundant given other columns in the dataset:
+    # Age already tells us this more precisely
+    "Under30", "SeniorCitizen",
+    # NumberofDependents is the continuous version of the boolean Dependents
+    "NumberofDependents",
+    # Number of Referrals is the continuous version of the boolean ReferredaFriend
+    "Number of Referrals",
+    # TotalRevenue ≈ TotalCharges - TotalRefunds + TotalExtraDataCharges + TotalLongDistanceCharges
+    "TotalRevenue",
 ]
 
 def load_and_clean(filepath: str) -> pd.DataFrame:
@@ -38,8 +47,8 @@ def load_and_clean(filepath: str) -> pd.DataFrame:
     if "Offer" in df.columns:
         df["Offer"] = df["Offer"].fillna("No Offer")
     # Filling missing values:
-    # - categorical → mode (most frequent)
-    # - numerical → median (more robust than mean)
+    # - categorical -> mode (most frequent)
+    # - numerical -> median (more robust than mean)
     # Drop fully empty categorical columns first
     empty_cols = [col for col in df.select_dtypes(include="object").columns if df[col].isnull().all()]
     df.drop(columns=empty_cols, inplace=True)
